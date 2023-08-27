@@ -14,6 +14,8 @@
 (rember-f equal? '(pop corn) '(lemonade (pop corn) and (cake))) ;; => (lemonade and (cake))
 (rember-f = 2 '(1 2 3 4 )) ;; (1 3 4)
 
+;; The Ninth Commandment
+;; Abstract common patterns with a new function
 
 ;; a function with value of a function comparing a and x
 (define eq?-c
@@ -171,5 +173,79 @@
   
 (multiremberT eq?-tuna '(shrimp salad tuna salad and tuna))
 
+;; continuations
+(define multirember&co
+  (lambda (a lat col)
+    (cond
+     ((null? lat) (col '() '()))
+     ((eq? (car lat) a) (multirember&co a (cdr lat)
+					(lambda (newlat seen)
+					  (col newlat (cons (car lat) seen)))))
+     (else (multirember&co a (cdr lat)
+			   (lambda (newlat seen)
+			     (col (cons (car lat) newlat) seen)))))))
+
+(define a-friend
+  (lambda (x y)
+    (null? y)))
+
+(multirember&co 'tuna '(strawberries tuna and swordfish) a-friend)
+(multirember&co 'tuna '() a-friend)
+(multirember&co 'tuna '(tuna) a-friend)
+
+;; The Tenth Commandment
+;; Build functions to collect more than one value at a time
 
 
+; confirm even? predicate available
+(even? 2)
+(even? 3)
+
+;; pull even numbers from a list
+(define evens-only*
+  (lambda (l)
+    (cond
+     ((null? l) '())
+     ((atom? (car l)) (cond
+		       ((even? (car l)) (cons (car l) (evens-only* (cdr l))))
+		       (else (evens-only* (cdr l)))))
+     (else
+      (cons (evens-only* (car l)) (evens-only* (cdr l)))))))
+
+(evens-only* '(2 3 4)) ; => (2 4)
+(evens-only* '((9 1 2 8) 3 10 ((9 9) 7 6) 2)) ; =>  ((2 8) 10 (6) 2)
+
+;; build a nested list of even numbers while simultaneously
+;; multiplying the even numbers and summing the odd numbers
+(define evens-only*&co
+  (lambda (l col)
+    (cond
+     ((null? l) (col '() 1 0))
+     ((atom? (car l))
+      (cond
+       ((even? (car l))
+	(evens-only*&co (cdr l)
+			(lambda (newl p s)
+			  (col (cons (car l) newl)
+			       (* (car l) p)
+			       s))))
+       (else
+	(evens-only*&co (cdr l)
+			(lambda (newl p s)
+			  (col newl p (+ (car l) s)))))))
+     (else
+      (evens-only*&co (car l)
+		      (lambda (al ap as)
+			(evens-only*&co (cdr l)
+					(lambda (dl dp ds)
+					  (col (cons al dl)
+					       (* ap dp)
+					       (+ as ds))))))))))
+
+(define the-last-friend
+  (lambda (newl product sum)
+    (cons sum
+	  (cons product
+		newl))))
+
+(evens-only*&co '((9 1 2 8) 3 10 ((9 9) 7 6 2)) the-last-friend)
